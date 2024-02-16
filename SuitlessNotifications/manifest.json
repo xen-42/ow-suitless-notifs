@@ -1,9 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/ow-mods/owml/master/schemas/manifest_schema.json",
-  "filename": "ModTemplate.dll",
-  "author": "Raicuparta",
-  "name": "Mod Template",
-  "uniqueName": "Raicuparta.ModTemplate",
+  "filename": "SuitlessNotifications.dll",
+  "author": "xen",
+  "name": "Suitless Notifications",
+  "uniqueName": "xen.SuitlessNotifications",
   "version": "0.1.0",
   "owmlVersion": "2.7.2"
 }
