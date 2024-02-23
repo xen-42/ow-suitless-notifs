@@ -1,100 +1,112 @@
-﻿using OWML.Common;
+﻿using HarmonyLib;
+using OWML.Common;
 using OWML.ModHelper;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace SuitlessNotifications
+namespace SuitlessNotifications;
+
+[HarmonyPatch]
+public class SuitlessNotifications : ModBehaviour
 {
-    public class SuitlessNotifications : ModBehaviour
-    {
 
 
-        private void Start()
-        {
-            LoadManager.OnCompleteSceneLoad += (scene, loadScene) =>
-            {
-                if (loadScene != OWScene.SolarSystem) return;
-				OnLoadSolarSystem();
-			};
-        }
-
-		private void OnLoadSolarSystem()
+	private void Start()
+	{
+		LoadManager.OnCompleteSceneLoad += (scene, loadScene) =>
 		{
-			var suitedDisplayUICanvas = GameObject.FindObjectOfType<SuitNotificationDisplay>().transform.parent.gameObject;
+			if (loadScene != OWScene.SolarSystem) return;
+			OnLoadSolarSystem();
+		};
+	}
 
-			// Instantiate inactive
-			suitedDisplayUICanvas.SetActive(false);
-			var suitlessDisplayUICanvas = GameObject.Instantiate(suitedDisplayUICanvas);
-			suitedDisplayUICanvas.SetActive(true);
+	private void OnLoadSolarSystem()
+	{
+		var suitedDisplayUICanvas = GameObject.FindObjectOfType<SuitNotificationDisplay>().transform.parent.gameObject;
 
-			// Remove all children but SuitNotificationDisplay
-			foreach (Transform child in suitlessDisplayUICanvas.transform)
+		// Instantiate inactive
+		suitedDisplayUICanvas.SetActive(false);
+		var suitlessDisplayUICanvas = GameObject.Instantiate(suitedDisplayUICanvas);
+		suitedDisplayUICanvas.SetActive(true);
+
+		suitlessDisplayUICanvas.name = nameof(SuitlessNotificationDisplay);
+
+		// Remove all children but SuitNotificationDisplay
+		foreach (Transform child in suitlessDisplayUICanvas.transform)
+		{
+			if (child.GetComponent<SuitNotificationDisplay>() == null)
 			{
-				if (child.GetComponent<SuitNotificationDisplay>() == null)
-				{
-					GameObject.Destroy(child.gameObject);
-				}
+				GameObject.Destroy(child.gameObject);
 			}
+		}
 
-			// Original is on HelmetOnUI
-			suitlessDisplayUICanvas.transform.parent = GameObject.Find("PlayerHUD/HelmetOffUI").transform;
-			suitlessDisplayUICanvas.transform.localPosition = suitedDisplayUICanvas.transform.localPosition;
-			suitlessDisplayUICanvas.transform.localRotation = Quaternion.identity;
+		// Original is on HelmetOnUI
+		suitlessDisplayUICanvas.transform.parent = GameObject.Find("PlayerHUD/HelmetOffUI").transform;
+		suitlessDisplayUICanvas.transform.localPosition = suitedDisplayUICanvas.transform.localPosition;
+		suitlessDisplayUICanvas.transform.localRotation = Quaternion.identity;
 
-			var copiedSuitDisplay = suitlessDisplayUICanvas.GetComponentInChildren<SuitNotificationDisplay>();
-			var suitlessDisplay = copiedSuitDisplay.gameObject.AddComponent<SuitlessNotificationDisplay>();
+		var copiedSuitDisplay = suitlessDisplayUICanvas.GetComponentInChildren<SuitNotificationDisplay>();
+		var suitlessDisplay = copiedSuitDisplay.gameObject.AddComponent<SuitlessNotificationDisplay>();
 
-			// Copy serialized fields
-			// NotificationDisplayTextLayout
-			suitlessDisplay._textDisplayTemplate = copiedSuitDisplay._textDisplayTemplate;
-			suitlessDisplay._backgroundImage = copiedSuitDisplay._backgroundImage;
-			suitlessDisplay._displaySpace = copiedSuitDisplay._displaySpace;
+		// Copy serialized fields
+		// NotificationDisplayTextLayout
+		suitlessDisplay._textDisplayTemplate = copiedSuitDisplay._textDisplayTemplate;
+		suitlessDisplay._backgroundImage = copiedSuitDisplay._backgroundImage;
+		suitlessDisplay._displaySpace = copiedSuitDisplay._displaySpace;
 
-			// NotificationDisplay
-			suitlessDisplay._displayText = copiedSuitDisplay._displayText;
-			suitlessDisplay._displayCanvas = copiedSuitDisplay._displayCanvas;
+		// NotificationDisplay
+		suitlessDisplay._displayText = copiedSuitDisplay._displayText;
+		suitlessDisplay._displayCanvas = copiedSuitDisplay._displayCanvas;
 
-			GameObject.Destroy(copiedSuitDisplay);
+		GameObject.Destroy(copiedSuitDisplay);
 
-			SetLayersRecursively(suitlessDisplayUICanvas, LayerMask.NameToLayer("UI"));
+		SetLayersRecursively(suitlessDisplayUICanvas, LayerMask.NameToLayer("UI"));
 
-			// Create suitless hud camera
-			/*
-			var suitlessHUDCameraObj = new GameObject("SuitlessHUDCamera");
-			suitlessHUDCameraObj.transform.parent = suitlessDisplayUICanvas.transform.parent;
-			suitlessHUDCameraObj.transform.localPosition = Vector3.zero;
-			suitlessHUDCameraObj.transform.localRotation = Quaternion.identity;
-			var suitlessHUDCamera = suitlessHUDCameraObj.AddComponent<Camera>();
-			suitlessHUDCameraObj.AddComponent<SuitlessHUDCamera>();
-			*/
+		// Create suitless hud camera
+		var HUDCamera = GameObject.FindObjectOfType<HUDCamera>();
 
+		HUDCamera.gameObject.SetActive(false);
+		var suitlessHUDCameraObj = GameObject.Instantiate(HUDCamera.gameObject);
+		HUDCamera.gameObject.SetActive(true);
+
+		suitlessHUDCameraObj.name = nameof(SuitlessHUDCamera);
+
+		suitlessHUDCameraObj.transform.parent = suitlessDisplayUICanvas.transform.parent;
+		suitlessHUDCameraObj.transform.localPosition = HUDCamera.transform.localPosition;
+		suitlessHUDCameraObj.transform.localRotation = HUDCamera.transform.localRotation;
+
+		//Component.Destroy(suitlessHUDCameraObj.GetComponent<HUDCamera>());
+		//suitlessHUDCameraObj.gameObject.AddComponent<SuitlessHUDCamera>();
+		var suitlessHUDCamera = suitlessHUDCameraObj.GetComponent<Camera>();
+
+		ModHelper.Events.Unity.FireOnNextUpdate(() =>
+		{
+			suitlessHUDCameraObj.SetActive(true);
+			suitlessDisplayUICanvas.SetActive(true);
 			foreach (var canvas in suitlessDisplayUICanvas.GetComponentsInChildren<Canvas>(true).Append(suitlessDisplayUICanvas.GetComponent<Canvas>()))
 			{
-				ModHelper.Events.Unity.FireOnNextUpdate(() => canvas.worldCamera = Locator.GetPlayerCamera().mainCamera);
-				//canvas.worldCamera = suitlessHUDCamera;
+				canvas.worldCamera = suitlessHUDCamera;
 			}
+		});
+	}
 
-			suitlessDisplayUICanvas.SetActive(true);
-		}
-
-		private void SetLayersRecursively(GameObject obj, LayerMask uiLayer)
+	private void SetLayersRecursively(GameObject obj, LayerMask uiLayer)
+	{
+		foreach (Transform child in obj.GetComponentInChildren<Transform>(true))
 		{
-			foreach (Transform child in obj.GetComponentInChildren<Transform>(true))
-			{
-				child.gameObject.layer = uiLayer;
-			}
-			obj.layer = uiLayer;
+			child.gameObject.layer = uiLayer;
 		}
+		obj.layer = uiLayer;
+	}
 
 #if DEBUG
-		public void Update()
+	public void Update()
+	{
+		if (Keyboard.current[Key.Numpad7].wasReleasedThisFrame)
 		{
-			if (Keyboard.current[Key.Numpad7].wasReleasedThisFrame)
-			{
-				NotificationManager.SharedInstance.PostNotification(new NotificationData(NotificationTarget.All, "TEST", 7f, true), false);
-			}
+			NotificationManager.SharedInstance.PostNotification(new NotificationData(NotificationTarget.All, "TEST", 7f, true), false);
 		}
-    }
-#endif
+	}
 }
+#endif

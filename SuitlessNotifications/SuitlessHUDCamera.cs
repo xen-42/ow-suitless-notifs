@@ -19,6 +19,7 @@ public class SuitlessHUDCamera : MonoBehaviour
 
 		// Serialized field, copy it from the original
 		var hudCamera = GameObject.FindObjectOfType<HUDCamera>();
+
 		_hudMaterial = new Material(hudCamera._hudMaterial);
 		_camera.clearFlags = hudCamera._camera.clearFlags;
 		_camera.backgroundColor = hudCamera._camera.backgroundColor;
@@ -55,6 +56,9 @@ public class SuitlessHUDCamera : MonoBehaviour
 
 		GlobalMessenger<OWCamera>.AddListener("SwitchActiveCamera", new Callback<OWCamera>(this.OnSwitchActiveCamera));
 		GlobalMessenger<GraphicSettings>.AddListener("GraphicSettingsUpdated", new Callback<GraphicSettings>(this.OnGraphicSettingsUpdated));
+
+		OnSwitchActiveCamera(Locator.GetActiveCamera());
+		ActivateHUD();
 	}
 
 	public void OnDestroy()
